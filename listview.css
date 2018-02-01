@@ -1,0 +1,22 @@
+ul {
+    list-style-type: none;
+    font-size: 2vw;
+    text-align: center; 
+    align-content: center;
+    width: 100%;
+    padding-left: 0px;
+}
+
+li {
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    background-color: gray;
+}
+
+a {
+    text-decoration: none;
+    color: black;
+}
+
+

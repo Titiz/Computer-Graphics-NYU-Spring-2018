@@ -1,0 +1,150 @@
+html{
+    height:75%;
+    position:relative;
+    font-family: "Avant Garde", Avantgarde, "Century Gothic", CenturyGothic, "AppleGothic", sans-serif;
+}
+
+
+header {
+    
+    width:95%;
+    height: 8vw;
+    margin-left: auto;
+    margin-right: auto;
+
+    font-family: "Avant Garde", Avantgarde, "Century Gothic", CenturyGothic, "AppleGothic", sans-serif;
+    font-size: 3vw;
+    padding-bottom: 5vw;
+    text-align: center;
+    text-transform: uppercase;
+    text-rendering: optimizeLegibility;
+
+
+    /*Taken from https://envato.com/blog/css3-typography-code-snippets/
+    http://codepen.io/juanbrujo/pen/yGpAK
+    */
+    color: #131313;
+    background-color: #e7e5e4;
+    letter-spacing: .15em;
+    text-shadow: 
+      1px -1px 0 #767676, 
+      -1px 2px 1px #737272, 
+      -2px 4px 1px #767474, 
+      -3px 6px 1px #787777, 
+      -4px 8px 1px #7b7a7a, 
+      -5px 10px 1px #7f7d7d, 
+      -6px 12px 1px #828181, 
+      -7px 14px 1px #868585, 
+      -8px 16px 1px #8b8a89, 
+      -9px 18px 1px #8f8e8d, 
+      -10px 20px 1px #949392, 
+      -11px 22px 1px #999897, 
+      -12px 24px 1px #9e9c9c, 
+      -13px 26px 1px #a3a1a1, 
+      -14px 28px 1px #a8a6a6, 
+      -15px 30px 1px #adabab, 
+      -16px 32px 1px #b2b1b0, 
+      -17px 34px 1px #b7b6b5, 
+      -18px 36px 1px #bcbbba, 
+      -19px 38px 1px #c1bfbf, 
+      -20px 40px 1px #c6c4c4, 
+      -21px 42px 1px #cbc9c8, 
+      -22px 44px 1px #cfcdcd, 
+      -23px 46px 1px #d4d2d1, 
+      -24px 48px 1px #d8d6d5, 
+      -25px 50px 1px #dbdad9, 
+      -26px 52px 1px #dfdddc, 
+      -27px 54px 1px #e2e0df, 
+      -28px 56px 1px #e4e3e2;
+}
+
+#name > h3 {
+    text-shadow:  1px -1px 0 #767676;
+}
+
+
+.mainBox {
+    width: 80%;
+    height: 100%;
+    background-color:red;
+}
+
+h1, h3 {
+    -webkit-margin-before: 0.1em;
+    -webkit-margin-after: 0.1em;
+    margin-block-start: 0.1em;
+    margin-block-end: 0.1em;
+}
+
+
+
+body {
+    background-color: #e8e6e5;
+    height: 100%;
+}
+
+
+.hwBox {
+    width:40vw; height:40vw;
+    margin-top: -5%;
+    margin-bottom: 2%;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+}
+
+.hwBox > h1 {
+    display:none;
+    font-size: 900;
+}
+
+.hwLabel {
+    width: 40vw;
+    height: 5vw;
+    padding-bottom: 0.5vw;
+    position:  absolute;
+	top: 90%;
+    font-family: "Avant Garde", Avantgarde, "Century Gothic", CenturyGothic, "AppleGothic", sans-serif;
+    font-size: 1.5vw;
+    text-align: center;
+    vertical-align: center;
+    text-transform: uppercase;
+    text-rendering: optimizeLegibility;
+
+    /* Taken from https://envato.com/blog/css3-typography-code-snippets/
+    http://codepen.io/juanbrujo/pen/yGpAK
+    */
+    color: #e0dfdc;
+    background-color: rgba(0, 0, 0, 0.8);
+    letter-spacing: .1em;
+    text-shadow: 
+      0 -1px 0 #fff, 
+      0 1px 0 #2e2e2e, 
+      0 2px 0 #2c2c2c, 
+      0 3px 0 #2a2a2a, 
+      0 4px 0 #282828, 
+      0 5px 0 #262626, 
+      0 6px 0 #242424, 
+      0 7px 0 #222, 
+      0 8px 0 #202020, 
+      0 9px 0 #1e1e1e, 
+      0 10px 0 #1c1c1c, 
+      0 11px 0 #1a1a1a, 
+      0 12px 0 #181818, 
+      0 13px 0 #161616, 
+      0 14px 0 #141414, 
+      0 15px 0 #121212, 
+      0 22px 30px rgba(0, 0, 0, 0.9);
+}
+
+
+.hwCanvas {
+    position:  absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+    border:0px solid black;
+    width: 100%;
+    height: 80%;
+}
