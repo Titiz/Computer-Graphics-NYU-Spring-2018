@@ -1,0 +1,350 @@
+
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+<style>
+canvas {background-color: black;}
+a {text-decoration: none;
+    color: black;}
+h1{background-color:#d6d2d1;}
+</style>
+<script src=lib2.js></script>
+
+
+<body >
+<center>
+<canvas id='canvas1' width=800 height=800 background-color=black></canvas>
+</center>
+</body>
+
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   varying   vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.0);
+      vPos = aPos;
+   }
+</script>
+
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+ uniform float uTime;   // TIME, IN SECONDS
+
+
+ varying vec3 vPos;     // -1 < vPos.x < +1
+                        // -1 < vPos.y < +1
+                        //      vPos.z == 0
+
+
+float get_t(vec4 sphere, vec3 V, vec3 W) {
+    // function that returns the time at which the intersection
+    // between a sphere and a ray happens
+    // t = -1 is if there was no intersection.
+
+    vec3 C = sphere.xyz;
+    float r = sphere.w;
+
+    vec3 P = V - C;
+    float sqrt_term = dot(W, P) * dot(W, P) - dot(P, P) + r*r;
+    float imaginary = 1. - step(sqrt_term, 0.);
+    float t1 = -dot(W, P) - sqrt(sqrt_term);
+    float is_negative = 1. - step(t1, 0.);
+    t1 = max(0.0, t1);
+    float t2 = (-dot(W, P) + sqrt(sqrt_term)) * (1.-is_negative);
+    t2 = max(0.0, t2);
+    float t = max(t1, t2);
+    t *= imaginary;
+
+    // If time was 0 or less we just set it to -1.
+    if (t < 0.001) {
+        t = -1.0;
+    }
+    return t;
+}
+
+ void main() {    
+    // Redefine variables for easier function calls
+    float x = vPos.x;
+    float y = vPos.y;
+    float z = vPos.z;
+    float u = uTime;
+    const float pi = 3.1415;
+
+
+    // vars for the focal point.
+    float f = 1.0;
+    vec3 V = vec3(0., 0., f);
+    vec3 W = normalize(vec3(vPos.x, vPos.y, -f));
+
+    // How many spheres we will be making;
+    const int sphere_count = 5;
+
+    // parameters needed for the spheres.
+    vec4 spheres[sphere_count];
+    vec3 colors[sphere_count];
+    vec3 srgbs[sphere_count];
+    vec3 drgbs[sphere_count];
+    float ts[sphere_count];
+    float spec_pows[sphere_count];
+    int is_reflectings[sphere_count];
+
+    //we set up the spheres in the scene.
+    spheres[0] = vec4(0., 0., -3., 1.);
+    srgbs[0] = vec3(1.0, 1.0, 1.0);
+    drgbs[0] = vec3(0.2, 0.2, 0.2);
+    spec_pows[0] = 100.;
+    is_reflectings[0] = 1;
+
+    spheres[1] = vec4(2.*cos(u), 2.*(sin(u)), -3.-sin(u), 0.8);
+    srgbs[1] = vec3(1.0, 1.0, 0.5);
+    drgbs[1] = vec3(1.0, 1.0, 1.0);
+    spec_pows[1] = 10.;
+    is_reflectings[1] = 0;
+
+    spheres[2] = vec4(2.*cos(u+pi), 2.*(sin(u+pi)), -3.-sin(u), 0.6);
+    srgbs[2] = vec3(1.0, 0.5, 1.0);
+    drgbs[2] = vec3(0.3, 0.4, 0.6);
+    spec_pows[2] = 5.;
+    is_reflectings[2] = 0;
+
+    spheres[3] = vec4(2.*sin(u+pi), -sin(u) , -3.+ 2.*cos(u+pi), 0.4);
+    srgbs[3] = vec3(0.5, 1.0, 1.0);
+    drgbs[3] = vec3(0.1, 1.0, 0.1);
+    spec_pows[3] = 2.;
+    is_reflectings[3] = 0;
+
+    spheres[4] = vec4(2.*sin(u), -sin(u) , -3.+ 2.*cos(u), 0.3);
+    srgbs[4] = vec3(0.1, 0.1, 0.1);
+    drgbs[4] = vec3(0.3, 0.1, 1.0);
+    spec_pows[4] = 1.0;
+    is_reflectings[4] = 0;
+    
+    // We now do ray tracing
+    for (int i = 0; i < sphere_count; i++) {
+        float t = get_t(spheres[i], V, W);
+        // We store the time in an array
+        ts[i] = t;
+    }
+
+    // We setup the ambient color
+    vec3 amb_color = vec3(0.0, 0.0, 0.1);
+    // Color which we will be showing
+    vec3 color = amb_color;
+
+    // We now loop through the times to find the lowest non-negative one. 
+    // This way we get the closest shphere.
+    float t = ts[0];
+    vec3 C = spheres[0].xyz;
+    float r = spheres[0].w;
+    vec3 srgb = srgbs[0];
+    vec3 drgb = drgbs[0];
+    float spec_pow = spec_pows[0];
+    int is_reflecting = is_reflectings[0];
+    for (int i = 1; i < sphere_count; i++) {
+        if (ts[i] < 0.001) continue;
+        if (t + 1. < 0.001 || ts[i] < t) {
+            t = ts[i];
+            C = spheres[i].xyz;
+            r = spheres[i].w;
+            srgb = srgbs[i];
+            drgb = drgbs[i];
+            spec_pow = spec_pows[i];
+            is_reflecting = is_reflectings[i];
+        }
+    }
+
+
+    // Vectors as described in assignment 2.
+    vec3 S = V + t * W;
+    vec3 N = normalize(S - C);
+
+
+    // If the ray interesects a sphere
+    if (t > 0.) {
+        // we setup the lights
+        const int light_count = 3;
+        vec3 light_colors[light_count];
+        vec3 light_directions[light_count];
+        light_colors[0] =  vec3(1.0, 0.0, 1.0)*0.5;
+        light_directions[0] = normalize(vec3(-1.0, 0., 1.0));
+        light_colors[1] = vec3(1.0, 1.0, 0.0)*0.5;
+        light_directions[1] = normalize(vec3(1.0, 0.0, 1.0));
+        light_colors[2] = min(max(-0.2,sin(u/2.)), 0.5) * vec3(1.0, 1.0, 1.0)*2.;
+        light_directions[2] = normalize(vec3(0., 0., 1.0));
+        
+        // We apply the lights to the material of the sphere at that pixel
+        vec3 final_color = amb_color;
+        for (int i = 0; i < light_count; i++) {
+            vec3 L = light_directions[i];
+            vec3 R = 2. * dot(N, L) * N - L;
+            vec3 specular = srgb * pow(max(0., dot(-W, R)), spec_pow);
+            vec3 diffuse = drgb * max(0.0, dot(N, L));
+            final_color += light_colors[i] * (specular + diffuse);
+        }
+
+        // If the sphere interesected is reflective
+        if (is_reflecting == 1) {
+            // We redefine the two vectors as in the course notes.
+            W = 2. * dot(N, -W) * N + W;
+            V = S + 0.001*W;
+
+            // We then find the next closest sphere
+            for (int i = 0; i < sphere_count; i++) {
+                ts[i] = get_t(spheres[i], V, W);
+            }
+            
+            // We go through the spheres and pick the closest one.
+            for (int i = 1; i < sphere_count; i++) {
+                if (ts[i] < 0.001) continue;
+                if (t + 1. < 0.001 || ts[i] < t) {
+                    t = ts[i];
+                    C = spheres[i].xyz;
+                    r = spheres[i].w;
+                    srgb = srgbs[i];
+                    drgb = drgbs[i];
+                    spec_pow = spec_pows[i];
+                    is_reflecting = is_reflectings[i];
+                }
+            }
+
+            // We recalculate S and N
+            S = V + t * W;
+            N = normalize(S - C);
+            
+            // If we find a sphere that the ray intersects
+            if (t > 0.) {
+                // We adjust the color of the reflective sphere accordingly.
+                for (int i = 0; i < light_count; i++) {
+                    vec3 L = light_directions[i];
+                    vec3 R = 2. * dot(N, L) * N - L;
+                    vec3 specular = srgb * pow(max(0., dot(-W, R)), spec_pow);
+                    vec3 diffuse = drgb * max(0.0, dot(N, L));
+                    final_color += light_colors[i] * (specular + diffuse);
+                }
+            }
+        
+
+        } 
+        // we set the color we will use here.
+        color = final_color;
+    }
+
+    gl_FragColor = vec4(color, 1.0);
+ }</script>
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+Assignment 3 : Phong shading
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=black>
+    <b id="description"> DESCRIPTION </b>
+    <p>
+        For this homework, I implemented the Phong reflection model described in the course notes. To test the implementation I 
+        made 3 light sources, one from the direction of the camera, and two from the left and right of the camera. The left light is 
+        purple, the middle light is white and the right light is yellow. 
+        The white light oscillates in intensity, sometimes reaching negative intensity. At this point the light 
+        turns black and it seems as if we have a sucking of light out of the scene.
+    </p>
+    <p>
+        Four spheres are rotating around a bigger central sphere.
+        The four rotating spheres all have different values for diffuse and specular coefficients. 
+        The central sphere is defined to be
+        reflective and thus becomes a mirror. The light sources described before can be seen in the reflection of the sphere.
+    </p>
+
+
+    
+
+</script
+
+
+<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
+   ,'<TABLE cellspacing=10 cellpadding=10 padding top=50 background-color=black><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:12px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top id="description_entry"><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   setUniform('1f', 'uTime', time);
+}
+
+
+gl_start(canvas1, vs, fs);
+
+canvas1.style.width = '800px';
+canvas1.style.height = '800px';
+
+var big = true;
+var txtwidth  = textArea.style.width;
+textArea.style.display = "none";
+
+document.getElementById("description").innerHTML = 
+    "Description (press on canvas to open text editor)" 
+
+function resz(evt) {
+   if (big) {
+       document.getElementById("description").innerHTML = "Description"
+       //canvas1.style.width = '400px';
+       //canvas1.style.height = '400px';
+       textArea.style.display = "block";
+       //document.getElementById("description_entry").style.display = "none";
+
+       big = false;
+   } else {
+       big = true;
+       //canvas1.style.width = '800px';
+       //canvas1.style.height = '800px';
+
+       //document.getElementById("description_entry").style.display = "block";
+       textArea.style.display = "none";
+   }
+   
+}
+canvas1.addEventListener('mousedown', resz);
+
+
+</script>
+

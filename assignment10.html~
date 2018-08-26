@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+
+<header>
+
+
+
+<a href = "start.html">
+<div id = "Title">
+    <h1> Computer Graphics </h1>
+</div>
+</a>
+
+<div id = "pageName"> 
+    <h2> Assignment 0 </h2>
+</div>
+
+
+
+
+</header>
+
+<body>
+
+
+
+<div id = "mainBox" > 
+<h1> About Myself </h1>
+<p> My name is Titas Geryba and I am a student from the Abu Dhabi campus of NYU. 
+    I am majoring in mathematics and minoring in Computer Science. 
+    My primary interests outside of academia involve walking, hiking, basketball, music listening and, perhaps
+    most relevant to this course, video games. </p>
+
+<h1> Why Take this course </h1>
+
+<p> My first and primary interest in this course is understanding the mathematics and reasoning behind the way
+computers represent 3D graphics on a two dimensional screen. In the process I wish to also learn the basic principles,
+intuitions and easy ways to interpret what the GPU is doing to accomplish the feats that we see. Finally, I wish
+to gain some adept skills at being able to program some of these things effectively and get an understanding of how I could
+create my own variations of graphics and graphical effects in the future.
+</p>
+
+<h1> What would I like to see in this course </h1>
+<p>
+I have always been told that linear algebra and quanternions are very useful in representing 3D graphics. This is what would
+really excite me in the classroom - the theory behind all of this. I want to see how it is connected and the intuition behind
+connecting 3D graphics, essentially a way to represent the real world, with the aspects of abstract and linear algebra. 
+I feel like this
+would give me a better understanding of algebra as a modelling tool and give me a good grasp of what it means to 
+manipulate objects in three dimensions. 
+</p>
+<p>
+Other than that, I really want hands-on stuff. I want to program movement and creations of shapes while understanding the algorithms
+behind them. I want to gain the ability to write code that deals with graphics
+ fairly efficiently, so a lot of practice with valuable feedback
+would be great. To have an idea of how certain graphics are implemented in media I consume, going over certain examples like 
+the movies we have seen so far and breaking them down would be of great help. If possible, I would also love to see examples from 
+video games.
+
+Over time, I hope the theory, in combination with practice and the examination of existing examples would help me understand 
+how to produce my own graphics effects without being explicitly told or shown how the implementation should be done.
+</p>
+</div>
+
+</body>
+</html>

@@ -1,4 +1,4 @@
-<script src=lib1.js></script>
+<script src=lib4.js></script>
 
 <body bgcolor=black text=white link=white alink=white vlink=white>
 <center>
@@ -6,74 +6,54 @@
 </center>
 </body>
 
-
-<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
-
 <script id='my_vertex_shader' type='x-shader/x-vertex'>
-   attribute vec3 aPos;
-   varying   vec3 vPos;
+   attribute vec3 aPos; // VERTEX ATTRIBUTES: POSITION
+   attribute vec3 aNor; //                    NORMAL
+   attribute vec2 aUV ; //                    TEXTURE U,V
+
+   uniform mat4 uPPMat;     // PERSPECTIVE PROJECTION MATRIX
+   uniform mat4 uObjectMat; // OBJECT TRANSFORMATION MATRIX
+   uniform mat4 uNormalMat; // NORMAL TRANSFORMATION MATRIX
+
+   varying   vec3 vPos; // TRANSFORMED POSITION
+   varying   vec3 vNor; // TRANSFORMED NORMAL
+   varying   vec2 vUV ;
+
    void main() {
-      gl_Position = vec4(aPos, 1.);
+      gl_Position = uPPMat * uObjectMat * vec4(aPos, 1.);
       vPos = aPos;
+      vNor = (vec4(aNor, 0.) * uNormalMat).xyz;
+      vUV  = aUV ;
    }
 </script>
 
-
-<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
-
 <script id='my_fragment_shader' type='x-shader/x-fragment'>
+varying vec3  vPos;
+varying vec3  vNor;
+varying vec2  vUV ;
+uniform vec3  uRGB;
+uniform mat4 uMat[2];
 
- uniform float uTime;   // TIME, IN SECONDS
+void main() {
+   vec3 normal = normalize(vNor);
+   vec3 lDir = normalize(vec3(1.,1.,1.));
+   float c = 0.1 + 0.9 * max(0.,
+             dot(normal, lDir));
+   vec3 color = uRGB * c;
+   gl_FragColor = vec4(sqrt(color), 1.0);
+}</script>
 
- varying vec3 vPos;     // -1 < vPos.x < +1
-                        // -1 < vPos.y < +1
-                        //      vPos.z == 0
-
- void main() {    // YOU MUST DEFINE main()
-
-    // HERE YOU CAN WRITE ANY CODE TO
-    // DEFINE A COLOR FOR THIS FRAGMENT
-
-    float red   = vPos.x;
-    float green = vPos.y;
-    float blue  = sin(5. * uTime);
-
-    // R,G,B EACH RANGE FROM 0.0 TO 1.0
-
-    vec3 color = vec3(red, green, blue);
-
-    // THIS LINE OUTPUTS THE FRAGMENT COLOR
-
-    gl_FragColor = vec4(sqrt(color), 1.0);
- }</script>
-
-
-<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
-
-<script id='my_title' type='text/html'>
-HERE YOU CAN GIVE YOUR ASSIGNMENT A TITLE
-</script>
-
-
-<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
-
-<script id='my_instructions' type='text/html'><font color=#b0b0b0>
-And here you can write a description<br>
-in HTML format of what your program<br>
-is doing, and why you wrote it.
+<script id='instructions' type='text/html'><font color=#b0b0b0>
+<b>Description</b>
 <p>
-<i>For example:</i>
-<p>
-This is a really simple fragment shader<br>
-program I wrote so the students in my<br>
-computer graphics class can see how<br>
-<code>uTime</code> and <code>vPos</code> can be the inputs for<br>
-a fragment shader, and <code>gl_FragColor</code><br>
-is the output.
+Remember, my code
+is just a guide, so that you can see where all
+of the pieces go.
+For your own homework, make sure not to just
+copy this code.
+Based on what I ask for the homework,
+make sure you show your own work.
 </script>
-
-
-<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
    
 <script>
 var vs = my_vertex_shader.innerHTML,
@@ -81,7 +61,7 @@ var vs = my_vertex_shader.innerHTML,
     fs = fs.substring(1, fs.length);
 
 document.body.innerHTML = [''
-   ,'<center><font size=6 color=#b0b0b0>' + my_title.innerHTML + '</center>'
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
    ,'<TABLE cellspacing=0 cellpadding=0><TR>'
    ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
    ,'</TR><TR>'
@@ -93,7 +73,7 @@ document.body.innerHTML = [''
    ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
    ,'></textArea>'
    ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
-   ,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'<td valign=top><font size=5>' + instructions.innerHTML + '</td>'
    ,'</tr></table>'
    ,'</TR></TABLE>'
    ].join('');
@@ -111,9 +91,94 @@ textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
 
 var startTime = Date.now();
 
+// RETURNS ONE VERTEX OF A UNIT SPHERE, GIVEN PARAMETRIC u,v
+
+function sphereVertex(u, v) {
+  let theta = 2 * Math.PI * u;
+  let phi   = Math.PI * (v - .5);
+  let x = Math.cos(phi) * Math.cos(theta);
+  let y = Math.cos(phi) * Math.sin(theta);
+  let z = Math.sin(phi);
+  return [x, y, z,  x, y, z,  u, v];
+}
+
+// CREATE A PARAMETRIC SHAPE AS A SINGLE TRIANGLE STRIP
+
+function createParametricShape(func, nu, nv) {
+  let vertices = [];
+  for (let j = 0 ; j < nv ; j++) {
+     let v0 =  j    / nv;
+     let v1 = (j+1) / nv;
+     for (let i = 0 ; i <= nu ; i++) {
+        let u = i / nu;
+	if (j % 2)
+	   u = 1 - u;
+	vertices = vertices.concat(func(u, v0));
+	vertices = vertices.concat(func(u, v1));
+     }
+  }
+  return vertices;
+}
+
+// GENERATE THE TRIANGLE STRIP FOR A SPHERE
+
+var sphereTriangleStrip = createParametricShape(sphereVertex, 20, 10);
+
 function animate(gl) {
    let time = (Date.now() - startTime) / 1000;
+
    setUniform('1f', 'uTime', time);
+   setUniform('3fv', 'uCursor', cursor);
+
+   var zRange = 10; // DEFINE A RANGE FOR Z VALUES
+   var fl = 3;      // FOCAL LENGTH OF VIRTUAL CAMERA
+
+   // DEFINE THE PERSPECTIVE PROJECTION MATRIX
+
+   setUniform('Matrix4fv', 'uPPMat', false, [
+          1,  0,         0,     0,
+          0,  1,         0,     0,
+          0,  0, -1/zRange, -1/fl,
+          0,  0,         0,     1,
+   ]);
+
+
+   // SEND SPHERE GEOMETRY DOWN TO GPU AS A TRIANGLE STRIP
+
+   setBuffer(gl, sphereTriangleStrip);
+
+
+   // FIRST SPHERE, USING SAME TRIANGLE STRIP
+
+   let c = Math.cos(1.3 * time);
+   let s = Math.sin(1.3 * time);
+
+   let objMat1 = [
+      .5*c,   s,  0, 0,    // uObjectMat SCALES UNIFORMLY
+        -s,   c,  0, 0,
+         0,   0,  1, 0,
+         0, -.5, -1, 1,
+   ];
+   let norMat1 = matrixInvert(objMat1);
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objMat1);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,0,0]);
+   drawBuffer(gl);                     // FIRST DRAW CALL
+
+
+   // SECOND SPHERE, USING SAME TRIANGLE STRIP
+
+   objMat1[13] *= -1;     // JUST MODIFYING THE MATRIX
+   objMat1[14] *= -1;
+   norMat1 = matrixInvert(objMat1);
+
+   let t = .5 + .5 * Math.sin(3 * time); // ANIMATE COLOR
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objMat1);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [t,0,1-t]);
+   drawBuffer(gl);                     // SECOND DRAW CALL
 }
 
 gl_start(canvas1, vs, fs);

@@ -1,0 +1,578 @@
+
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+<style>
+canvas {background-color: black;}
+a {text-decoration: none;
+    color: black;}
+h1{background-color:#d6d2d1;}
+
+</style>
+<script src=lib4.js></script>
+<script src=Hermitian.js></script>
+
+
+<body >
+<center>
+<canvas id='canvas' width=800 height=800 background-color=black></canvas>
+</center>
+</body>
+
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos; // VERTEX ATTRIBUTES: POSITION
+   attribute vec3 aNor; //                    NORMAL
+   attribute vec2 aUV ; //                    TEXTURE U,V
+
+   uniform mat4 uPPMat;     // PERSPECTIVE PROJECTION MATRIX
+   uniform mat4 uObjectMat; // OBJECT TRANSFORMATION MATRIX
+   uniform mat4 uNormalMat; // NORMAL TRANSFORMATION MATRIX
+
+   varying   vec3 vPos; // TRANSFORMED POSITION
+   varying   vec3 vNor; // TRANSFORMED NORMAL
+   varying   vec2 vUV ;
+
+   void main() {
+      gl_Position = uPPMat * uObjectMat * vec4(aPos, 1.);
+      vPos = aPos;
+      vNor = (vec4(aNor, 0.) * uNormalMat).xyz;
+      vUV  = aUV ;
+   }
+</script>
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+varying vec3  vPos;
+varying vec3  vNor;
+varying vec2  vUV ;
+uniform vec3  uRGB;
+uniform mat4 uMat[2];
+
+void main() {
+   vec3 normal = normalize(vNor);
+   vec3 lDir = normalize(vec3(1.,1.,1.));
+   float c = 0.1 + 0.9 * max(0.,
+             dot(normal, lDir));
+   vec3 color = uRGB * c;
+   gl_FragColor = vec4(sqrt(color), 1.0);
+}</script>
+
+
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+Assignment 8A : Hermitian Spline
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=black>
+    <b id="description" style="font-size:30px;"> DESCRIPTION </b>
+    <p>
+        <ul>
+        <li>Left click on the canvas to place a point on the x-y plane that will be used
+            as a spline point of the path of the cube. </li>
+        <li> press q and w to increase or decrease (respectively) the z-coordinate of the 
+            most recently added point </li>
+        <li> press d to delete the latest added point </li>
+        <li> press j or k repeatedly to increase or decrease (respectively) the speed at which the cube moves. </li>
+        </ul>
+        
+        
+    </p>
+        <p>
+        For this homework we were asked to implement Hermitian Spline and use it. I used my implementation
+        to create an interactive demo where the user gets to pick the points through which a cube should move through.
+        For the tangent vectors at each point P, I chose the direction P to the point it came from and the direction from P to 
+        the next point in its path.
+        </p>
+</script>
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+    textArea.cols = cols;
+    textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+
+
+function dot_product(u1, u2, u3, u4, v1, v2, v3, v4) {
+    return u1*v1 + u2*v2 + u3*v3 + u4*v4;
+}
+
+function matrix_mult(m1, m2) {
+    m = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            let pos = i*4+j;
+            m[pos] = dot_product(m1[i*4], m1[i*4+1], m1[i*4+2], m1[i*4+3],
+                                 m2[j], m2[j+4], m2[j+8], m2[j+12]);
+        }
+    }
+    return m;
+}
+
+function matrix_vec3_mult(m, v) {
+    vp = [0,0,0,1];
+    for (i = 0; i < 4; i++) {
+           vp[i] = dot_product(m[i], m[i+4], m[i+8], m[i+12],
+                                 v[0], v[1], v[2], 1);
+        }
+    return vp.slice(0,4);
+}
+
+
+function sphereVertex(u, v) {
+  let theta = 2 * Math.PI * u;
+  let phi   = Math.PI * (v - .5);
+  let x = Math.cos(phi) * Math.cos(theta);
+  let y = Math.cos(phi) * Math.sin(theta);
+  let z = Math.sin(phi);
+  return [x, y, z,  x, y, z,  u, v];
+}
+
+function cylinder_vertex(u, v) {
+  let t = (v * 5);
+  let theta = 2 * Math.PI * u;
+  let c = Math.cos(theta);
+  let s = Math.sin(theta);
+  let pos = [
+      [0, 0, -1],
+      [c, s, -1],
+      [c, s, -1],
+      [c, s, 1],
+      [c, s, 1],
+      [0, 0, 1] 
+  ]
+    let norm = [
+      [0, 0, -1],
+      [0, 0, -1],
+      [c, s, 0],
+      [c, s, 0],
+      [0, 0, 1],
+      [0, 0, 1] 
+  ]
+
+  let cpos = pos[t];
+  let cnorm = norm[t];
+
+  return [cpos[0], cpos[1], cpos[2], cnorm[0], cnorm[1], cnorm[2], u, v];
+}
+
+
+function cube_vertex(u, v) {
+  let tu = u * 8;
+  let tv = v * 5;
+
+  let pos_u = [
+       [1, 1],
+       [1, 1],
+       [-1, 1],
+       [-1, 1],
+       [-1, -1],
+       [-1, -1],
+       [1, -1],
+       [1, -1],
+       [1, 1],
+  ]
+    let norm_u = [
+       [1, 0],
+       [0, 1],
+       [0, 1],
+       [-1,0],
+       [-1,0],
+       [0, -1],
+       [0, -1],
+       [1, 0],
+       [1, 0],
+  ]
+
+  let zs = [-1, -1, -1, 1, 1, 1];
+  let nzs = [-1, -1, 0, 0, 1, 1];
+
+  let x = pos_u[tu][0];
+  let y = pos_u[tu][1];
+  let z = zs[tv];
+
+  let nx = norm_u[tu][0];
+  let ny = norm_u[tu][1];
+  let nz = nzs[tv];
+
+  if (v == 0 || v == 1) {
+      x = 0;
+      y = 0;
+  }
+
+  return [x, y, z, nx, ny, nz, u, v];
+}
+
+// CREATE A PARAMETRIC SHAPE AS A SINGLE TRIANGLE STRIP
+
+function createParametricShape(func, nu, nv) {
+  let vertices = [];
+  for (let j = 0 ; j < nv ; j++) {
+     let v0 =  j    / nv;
+     let v1 = (j+1) / nv;
+     for (let i = 0 ; i <= nu ; i++) {
+        let u = i / nu;
+	if (j % 2)
+	   u = 1 - u;
+	vertices = vertices.concat(func(u, v0));
+	vertices = vertices.concat(func(u, v1));
+     }
+  }
+  return vertices;
+}
+
+
+// GENERATE THE TRIANGLE STRIP FOR A SPHERE
+
+var sphereTriangleStrip = createParametricShape(sphereVertex, 20, 10);
+var badsphereTriangleStrip = createParametricShape(sphereVertex, 4, 2);
+var cylinderTriangleStrip = createParametricShape(cylinder_vertex, 40, 5);
+var cubeTriangleStrip = createParametricShape(cube_vertex, 8, 5);
+
+// STACK MECHANISM
+
+var Matrix = function() {
+    this.matrix =  [
+    1, 0., 0., 0., 
+    0., 1, 0, 0., 
+    0., 0, 1, 0., 
+    0., 0, 0, 1
+   ];
+   this.stack =  Array();
+   return this;
+};
+
+Matrix.prototype.save = function()  {
+    this.stack.push(this.matrix.slice());
+};
+
+Matrix.prototype.restore = function() {
+    this.matrix = this.stack.pop().slice();
+};
+
+// Transformation types:
+   
+Matrix.prototype.rotateX = function(theta) {
+    let c = Math.cos(theta);
+    let s = Math.sin(theta);
+    var m_Rotx = [
+    1., 0., 0., 0., 
+    0., c, s, 0., 
+    0., -s, c, 0., 
+    0., 0., 0., 1.
+   ]
+   this.matrix = matrix_mult(this.matrix, m_Rotx);
+};
+
+Matrix.prototype.rotateY = function(theta) {
+    let c = Math.cos(theta);
+    let s = Math.sin(theta);
+    var m_Roty = [
+    c, 0., -s, 0., 
+    0., 1., 0., 0., 
+    s, 0., c, 0., 
+    0., 0., 0., 1.
+   ]
+   this.matrix = matrix_mult(this.matrix, m_Roty);
+};
+
+Matrix.prototype.rotateZ = function(theta) {
+    let c = Math.cos(theta);
+    let s = Math.sin(theta);
+    var m_Rotz = [
+    c, s, 0., 0., 
+    -s, c, 0., 0., 
+    0., 0., 1., 0., 
+    0., 0, 0, 1.
+   ]
+   this.matrix = matrix_mult(this.matrix, m_Rotz);
+};
+
+Matrix.prototype.translate = function(x, y, z) {
+    var m_Trans = [
+    1., 0., 0., 0., 
+    0., 1., 0., 0., 
+    0., 0., 1., 0., 
+    x, y, z, 1.
+   ]
+   this.matrix = matrix_mult(this.matrix, m_Trans);
+};
+
+Matrix.prototype.scale = function(sx, sy, sz) {
+    var m_Scale = [
+    sx, 0., 0., 0., 
+    0., sy, 0., 0., 
+    0., 0., sz, 0., 
+    0, 0, 0, 1.
+   ]
+   this.matrix = matrix_mult(this.matrix, m_Scale);
+};
+
+
+Matrix.prototype.rotateXO = function(theta) {
+    let x = this.matrix[12];
+    let y =  this.matrix[13];
+    let z = this.matrix[14];
+    this.translate(-x, -y, -z);
+    this.rotateX(theta);
+    this.translate(x, y, z);
+};
+
+Matrix.prototype.rotateXO = function(theta) {
+    let x = this.matrix[12];
+    let y =  this.matrix[13];
+    let z = this.matrix[14];
+    this.translate(-x, -y, -z);
+    this.rotateX(theta);
+    this.translate(x, y, z);
+};
+
+
+
+
+PI = 3.1415;
+
+function Sphere(m) {
+   setBuffer(gl, sphereTriangleStrip);
+   norMat = matrixInvert(m.matrix);
+
+   setUniform('Matrix4fv', 'uObjectMat', false, m.matrix);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl);    
+}
+
+function Cylinder(m) {
+   setBuffer(gl, cylinderTriangleStrip);
+   norMat = matrixInvert(m.matrix);
+
+   setUniform('Matrix4fv', 'uObjectMat', false, m.matrix);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl);    
+}
+
+function Cube(m) {
+   setBuffer(gl, cubeTriangleStrip);
+   norMat = matrixInvert(m.matrix);
+
+   setUniform('Matrix4fv', 'uObjectMat', false, m.matrix);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl);    
+}
+
+
+var mouseX = 0;
+var mouseY = 0;
+
+var movements = [vec3.create(0,0,0)];
+console.log(movements);
+var duration = 1;
+var cur_mov_index = 0;
+var last_update = 0;
+var t = 0;
+
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   let dt = time - last_update;
+   last_update = time;
+   
+   setUniform('1f', 'uTime', time);
+   setUniform('3fv', 'uCursor', cursor);
+
+   var zRange = 10; // DEFINE A RANGE FOR Z VALUES
+   var fl = 2;      // FOCAL LENGTH OF VIRTUAL CAMERA
+
+   // DEFINE THE PERSPECTIVE PROJECTION MATRIX
+
+   setUniform('Matrix4fv', 'uPPMat', false, [
+          1,  0,         0,     0,
+          0,  1,         0,     0,
+          0,  0, -1/zRange, -1/fl,
+          0,  0,         0,     1,
+   ]);
+
+    
+    var m = new Matrix();
+    
+    t += dt;
+
+    if (t > duration) {
+        cur_mov_index ++;
+        t = 0;
+    }
+
+    if (cur_mov_index == movements.length) {
+        t = 0;
+        cur_mov_index = 0;
+    }
+
+    let spline_t = t/duration;
+
+    let dvb = vec3.create(0, 0, 0);
+    let dvc = vec3.create(0, 0, 0);
+    let Cx = 0;
+    let Cy = 0;
+    let Cz = 0;
+
+    if (cur_mov_index == 0) {
+        dvb = subtract(movements[0],movements[movements.length-1]);
+    } else {
+        dvb = subtract(movements[cur_mov_index], movements[cur_mov_index-1]);
+    }
+
+    if (cur_mov_index == movements.length-1) {
+        dvc = subtract(movements[0], movements[cur_mov_index]);
+        Cx = Hermite(movements[cur_mov_index].x, movements[0].x, dvb.x, dvc.x);
+        Cy = Hermite(movements[cur_mov_index].y, movements[0].y, dvb.y, dvc.y);
+        Cz = Hermite(movements[cur_mov_index].z, movements[0].z, dvb.z, dvc.z);
+    } else {
+        dvc = subtract(movements[cur_mov_index+1], movements[cur_mov_index]);
+        
+        Cx = Hermite(movements[cur_mov_index].x, movements[cur_mov_index+1].x, dvb.x, dvc.x);
+        Cy = Hermite(movements[cur_mov_index].y, movements[cur_mov_index+1].y, dvb.y, dvc.y);
+        Cz = Hermite(movements[cur_mov_index].z, movements[cur_mov_index+1].z, dvb.z, dvc.z);
+    }
+    
+    let tx = evaluatePolynomial(Cx, spline_t);
+    let ty = evaluatePolynomial(Cy, spline_t);
+    let tz = evaluatePolynomial(Cz, spline_t);
+
+    m.save();
+        m.scale(0.1, 0.1, 0.1)
+        m.rotateZ(tx);
+        m.rotateY(ty);
+        m.rotateX(tz);
+        m.translate(tx, ty, tz);
+        Cube(m);
+    m.restore();
+
+    for (let i = 0; i < movements.length; i++) {
+        m.save();
+            m.scale(0.01, 0.01, 0.01);
+            m.translate(movements[i].x, movements[i].y, movements[i].z);
+            Sphere(m);
+        m.restore();
+    }
+}
+
+canvas.style.width = '800px';
+canvas.style.height = '800px';
+
+var big = true;
+var txtwidth  = textArea.style.width;
+textArea.style.display = "none";
+
+
+document.getElementById("description").innerHTML = 
+    "Description (right click on canvas to open text editor)" 
+
+function resz(evt) {
+   if (big) {
+       document.getElementById("description").innerHTML = "Description"
+       textArea.style.display = "block";
+       big = false;
+   } else {
+       big = true;
+       textArea.style.display = "none";
+   }
+   evt.preventDefault();
+   return false;
+}
+
+var middleMouseDown = false;
+
+canvas.addEventListener('contextmenu', resz);
+canvas.addEventListener('mousedown', function(evt){
+    evt.preventDefault();
+    if (evt.button == 0) {
+        movements.push(vec3.create(mouseX, mouseY, 0))
+    } 
+    return false;})
+
+canvas.addEventListener('mouseup', function(evt){
+    evt.preventDefault();
+    if (evt.button == 2) {
+         middleMouseDown = false;
+    } 
+    return false;})
+
+window.addEventListener("keyup", function(event) {
+  event.preventDefault();
+  console.log(event.keyCode);
+  if (event.keyCode === 75) {
+     duration += 0.1
+     console.log(mouseR);
+  }
+  if (event.keyCode === 74) {
+     duration -= 0.1
+  }
+  if (event.keyCode === 68) {
+     movements.pop();
+  }
+  if (event.keyCode === 81) {
+    movements[movements.length-1].z += 0.1;
+  }
+  if (event.keyCode === 87) {
+    movements[movements.length-1].z -= 0.1;
+  }
+});
+
+canvas.addEventListener('mousemove', function(evt) {
+    var rect = canvas.getBoundingClientRect();
+
+    let X = evt.clientX - rect.left;
+    let Y = evt.clientY - rect.top;
+    let W = canvas.width;
+    let H = canvas.height;
+    if (middleMouseDown) {
+        mouseR = -((X - 0)/(W) * (-1 - 1) + 1);
+    }else {
+        mouseX = -((X - 0)/(W) * (-1 - 1) + 1);
+        mouseY = ((Y - 0)/(H) * (-1 - 1) + 1);
+    }
+})
+
+
+gl_start(canvas, vs, fs);
+
+
+
+
+</script>
+

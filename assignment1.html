@@ -1,33 +1,280 @@
-<!DOCTYPE html>
-<html>
+
 <link rel="stylesheet" href="styleGeneral.css"> </link>
-
-<header>
-
-
-
-<a href = "start.html">
-<div id = "Title">
-    <h1> Computer Graphics </h1>
-</div>
-</a>
-
-<div id = "pageName"> 
-    <h2> Assignment 1 </h2>
-</div>
+<style>
+canvas {background-color: black;}
+a {text-decoration: none;
+    color: black;}
+h1{background-color:#d6d2d1;}
+</style>
+<script src=lib1.js></script>
 
 
-
-
-</header>
-
-<body>
-
-
-
-<div id = "mainBox" > 
-<h1> To be determined... </h1>
-</div>
-
+<body >
+<center>
+<canvas id='canvas1' width=800 height=800 background-color=black></canvas>
+</center>
 </body>
-</html>
+
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   varying   vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.0);
+      vPos = aPos;
+   }
+</script>
+
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+ uniform float uTime;   // TIME, IN SECONDS
+
+ varying vec3 vPos;     // -1 < vPos.x < +1
+                        // -1 < vPos.y < +1
+                        //      vPos.z == 0
+
+ 
+ void main() {    
+    // Redefine variables for easier function calls
+    float x = vPos.x;
+    float y = vPos.y;
+    float z = vPos.z;
+    float t = uTime;
+
+    // Impacts how fast the function is graphed.
+    float slow_factor = 1./3.;
+
+    // We update the time using the slow_factor.
+    t = t * slow_factor;
+
+
+    // Constant for pi
+    float pi = 3.14159265;
+
+    // The ending points of the three phases of our animation.
+    float t_phase1 = (2.*pi - 1.8) * slow_factor;
+    float t_phase2 = (7.4 * pi) * slow_factor;
+    float t_phase3 = (12. * pi -0.3) * slow_factor;
+    
+    // We reset the time after phase 2 is over.
+    t = mod(t, t_phase3);
+
+    // floats to keep track when certain phase is over.
+    float phase1 = step(t, t_phase1);
+    float phase2 = step(t, t_phase2) * (1.-phase1);
+    float phase3 = step(t, t_phase3) * (1.-phase2)*(1.-phase1);
+
+    // Some constants used for function calls
+    // rx determines the amount moved in the x-direction
+    // ry determines the amount moved in the y-direction
+    // k determines the of petals on the rose
+    float rx = 0.07; 
+    float ry = 0.4+phase2*0.1;
+    float k = 5.;
+    
+    // the x and y shifts that are done on the equation
+    float shift_x = 0.0;
+    float shift_y = 0.5;
+
+    // Rose petal equations
+    float xt = rx*cos(k*t)*cos(t)+shift_x;
+    float yt = ry*cos(k*t)*sin(t)+shift_y;
+
+    // Derivatives of the rose petal equation
+    float dxt = -k * cos(t) * sin(k*t) - sin(t)*cos(k*t);
+    float dyt = cos(t) * cos(k*x) - k * sin(t) * sin(k*t);
+
+
+    // Determines size of ball 
+    // other function values
+    float thickness = phase1 * 100. 
+    + (phase2+phase3) * 8.;
+
+    //vector keeping coordinates of rose equation at time t
+    vec2 par = vec2(xt, yt);
+    //vector keeping coordinate of the pixel
+    vec2 loc = vec2(x, y); 
+
+    //vector with units in x and y. Used for eye effect.
+    vec2 unit =vec2(1.0, 1.0);
+
+    // vector to be used for red and green calculations.
+    vec2 rg;
+    rg = unit - (thickness * distance(par, loc));
+
+    float slope = dyt/dxt;
+
+    // final calculations for the rgb values
+    float blue  = 
+    (phase2+phase3) *
+    tan(length(1.*rg + exp(mod(0.90*x*(x+3.)*(x), cos(y*y)))));
+
+    float red = 
+    (phase1)*(1. - thickness * distance(xt, x)) + 
+    
+    (phase2+phase3)*(1.0/rg.y * (yt-shift_y)) + 
+    0.5*((t-t_phase2)/(t_phase3-t_phase2) * phase3) *
+    tan(length(1.*rg + exp(mod(0.90*x*(x+3.)*(x), cos(y*y)))));
+    
+
+    float green = 
+    (phase1)*(1. - thickness * distance(yt, y)) + 
+
+    (phase2+phase3)*(1.0/rg.x * (yt-shift_y));
+
+    
+
+    //store the rgb vector
+    vec4 color = vec4(red, green, blue, 1.0);
+    
+    //-----fog calculations------
+    
+    //used in the equation below. Used to offset the fog.
+    float offset = 2.5;
+    
+    //equation that deals with the movement of the fog
+    float fog_factor = (phase1 + phase2) *
+    log(x*x*sin(t)+((y+offset)*(y+offset))*cos(t));
+    
+    //clamp the equation for it to not grow out of proportion
+    fog_factor = (phase1 + phase2) * clamp(fog_factor, 0.05, 0.4);
+    
+    //set the color of the fog:
+    vec4 fog_color = (phase1 + phase2) * vec4(0.2, 0.2, 0.2, 0.0);
+
+    //mix the fog with the original color for final effect.
+    vec4 frag_color = phase3 * color + (phase1+phase2) * mix(fog_color, color, fog_factor) ;
+
+    // THIS LINE OUTPUTS THE FRAGMENT COLOR
+    gl_FragColor = (phase1+phase2)*frag_color + tan(frag_color) * phase3;
+ }</script>
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+Assignment 1 : The Rose Observer
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=black>
+    <b id="description"> DESCRIPTION </b>
+    <p>The experiment here is being able to write a three phased program without any if statements, 
+        playing around with a fog effect, and seeing how a simple sinusoidal function can be used to create
+        motion that looks relatively believable.  
+    </p>
+    <p> The three phases are as follows: </p>
+    <ul>
+        <li>Phase 1:</li>
+        <p>In the first phase we 
+        simply show the coordinate of the rose equation at time t using two axes. A fog/blur effect
+        then sweeps in from the bottom and the two axes dissapear.
+        </p>
+        <li>Phase 2:</li>
+        <p>The black space is now filled with a sort of vector field that looks fluid and dynamic.
+        The fog slowly dissapears, and  a creature with a single eye emerges, 
+        looking at the visitor of the webpage, observing. The "eye" of the creature glows inwardly when it moves 
+        upwards and outwards when it moves downwards to simulate moments of more and less intense
+        observation. When the eye meets with the fog again, phase 3 is reached.
+        </p>
+        <li>Phase 3:</li>
+        <p> The sine of the same blue color is displayed and the red color begins increase in amount in the picture
+            causing the image to turn purplish red. The motion is much the same, with slighly decreased y-range.
+            In the end, the timer is reset and the first phase is again displayed.
+        </p>
+    </ul>
+     <p>
+    </p>
+
+    
+
+</script
+
+
+<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
+   ,'<TABLE cellspacing=10 cellpadding=10 padding top=50 background-color=black><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:12px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top id="description_entry"><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   setUniform('1f', 'uTime', time);
+}
+
+
+gl_start(canvas1, vs, fs);
+
+canvas1.style.width = '800px';
+canvas1.style.height = '800px';
+
+var big = true;
+var txtwidth  = textArea.style.width;
+textArea.style.display = "none";
+
+document.getElementById("description").innerHTML = 
+    "Description (press on canvas to open text editor)" 
+
+function resz(evt) {
+   if (big) {
+       document.getElementById("description").innerHTML = "Description"
+       //canvas1.style.width = '400px';
+       //canvas1.style.height = '400px';
+       textArea.style.display = "block";
+       //document.getElementById("description_entry").style.display = "none";
+
+       big = false;
+   } else {
+       big = true;
+       //canvas1.style.width = '800px';
+       //canvas1.style.height = '800px';
+
+       //document.getElementById("description_entry").style.display = "block";
+       textArea.style.display = "none";
+   }
+   
+}
+canvas1.addEventListener('mousedown', resz);
+
+
+</script>
+

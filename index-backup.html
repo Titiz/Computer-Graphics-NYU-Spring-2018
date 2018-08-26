@@ -1,39 +1,15 @@
-<!DOCTYPE html>
-<html>
-<link rel="stylesheet" href="styleStart.css"> </link>
 
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+<script src=lib1.js></script>
 
-<header>
-
-<div id = "Title">
-    <h1> Computer Graphics </h1>
-</div>
-
-<div id = "name">
-    <h3> A Website by Titas Geryba </h3>
-</div>
-
-</header>
-
-<body>
-    <div class = "hwBox" id = "hw0">
-        <a href = "list-view.html">
-        <canvas id="chw0" class="hwCanvas"> </canvas>
-        </a>
-        <a href = "list-view.html">
-        <div class = "hwLabel" id = "lhw0">
-            <h1>Assignments</h1>    
-        </div>
-        </a>
-    </div>
-        
-
-
-
-
+<body bgcolor=black text=white link=white alink=white vlink=white>
+<center>
+<canvas id='canvas1' width=800 height=800></canvas>
+</center>
 </body>
 
-<!!-------- ASSIGNMENT 1 -------->
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
 
 <script id='my_vertex_shader' type='x-shader/x-vertex'>
    attribute vec3 aPos;
@@ -45,7 +21,7 @@
 </script>
 
 
-
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
 
 <script id='my_fragment_shader' type='x-shader/x-fragment'>
 
@@ -156,8 +132,74 @@
  }</script>
 
 
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
 
-<script type="text/javascript" src="script.js"> </script>
-<script type="text/javascript" src="rotate.js"> </script>
+<script id='my_title' type='text/html'>
+HERE YOU CAN GIVE YOUR ASSIGNMENT A TITLE
+</script>
 
-</html>
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=#b0b0b0>
+And here you can write a description<br>
+in HTML format of what your program<br>
+is doing, and why you wrote it.
+<p>
+<i>For example:</i>
+<p>
+This is a really simple fragment shader<br>
+program I wrote so the students in my<br>
+computer graphics class can see how<br>
+<code>uTime</code> and <code>vPos</code> can be the inputs for<br>
+a fragment shader, and <code>gl_FragColor</code><br>
+is the output.
+</script>
+
+
+<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<center><font size=6 color=#b0b0b0>' + my_title.innerHTML + '</center>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   setUniform('1f', 'uTime', time);
+}
+
+gl_start(canvas1, vs, fs);
+</script>
+

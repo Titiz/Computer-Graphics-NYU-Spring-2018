@@ -1,0 +1,495 @@
+
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+<style>
+canvas {background-color: black;}
+a {text-decoration: none;
+    color: black;}
+h1{background-color:#d6d2d1;}
+
+</style>
+<script src=lib4.js></script>
+
+
+<body >
+<center>
+<canvas id='canvas1' width=800 height=800 background-color=black></canvas>
+</center>
+</body>
+
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos; // VERTEX ATTRIBUTES: POSITION
+   attribute vec3 aNor; //                    NORMAL
+   attribute vec2 aUV ; //                    TEXTURE U,V
+
+   uniform mat4 uPPMat;     // PERSPECTIVE PROJECTION MATRIX
+   uniform mat4 uObjectMat; // OBJECT TRANSFORMATION MATRIX
+   uniform mat4 uNormalMat; // NORMAL TRANSFORMATION MATRIX
+
+   varying   vec3 vPos; // TRANSFORMED POSITION
+   varying   vec3 vNor; // TRANSFORMED NORMAL
+   varying   vec2 vUV ;
+
+   void main() {
+      gl_Position = uPPMat * uObjectMat * vec4(aPos, 1.);
+      vPos = aPos;
+      vNor = (vec4(aNor, 0.) * uNormalMat).xyz;
+      vUV  = aUV ;
+   }
+</script>
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+varying vec3  vPos;
+varying vec3  vNor;
+varying vec2  vUV ;
+uniform vec3  uRGB;
+uniform mat4 uMat[2];
+
+void main() {
+   vec3 normal = normalize(vNor);
+   vec3 lDir = normalize(vec3(1.,1.,1.));
+   float c = 0.1 + 0.9 * max(0.,
+             dot(normal, lDir));
+   vec3 color = uRGB * c;
+   gl_FragColor = vec4(sqrt(color), 1.0);
+}</script>
+
+
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+Assignment 5 : Sphere Scene
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=black>
+    <b id="description" style="font-size:30px;"> DESCRIPTION </b>
+    <p>
+        For this homework I made one of the suggested scenes of a snowman. I implemented matrix multiplication to be able to 
+        rotate the snowman around the z-axis, so as to be able to observe it from more than one direction. The Snowman 
+        is made of 9 ellipsoids. 3 for the body, 2 for the eyes, 2 for the hat, 1 for the nose and 1 for the lips.
+    </p>
+        <p>
+        To add more to the effect of the scene, I created 500 low polygon ellipsoids to act as snow falling out of the sky. These
+        spheres start at a random height y between 1 and 6, out of view of the user, with random x and z coordinates between -1 and 1. 
+        When one of the snowfall spheres reach y = -1, the sphere's y-coordinate is again reset to be between 1 and 6 and 
+        a 2 new values between -1 and 1 are picked for the sphere's x and z coordinates.
+        This create the illusion of continuous snowfall reusing the same 500 spheres. No collision detection is used, so the snowfall
+        occasionally enters and exits parts of the snowman.
+    </p>
+
+</script>
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
+   ,'<TABLE cellspacing=0 cellpadding=0><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:16px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+
+
+function dot_product(u1, u2, u3, u4, v1, v2, v3, v4) {
+    return u1*v1 + u2*v2 + u3*v3 + u4*v4;
+}
+
+function matrix_mult(m1, m2) {
+    m = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            let pos = i*4+j;
+            m[pos] = dot_product(m1[i*4], m1[i*4+1], m1[i*4+2], m1[i*4+3],
+                                 m2[j], m2[j+4], m2[j+8], m2[j+12]);
+        }
+    }
+    return m;
+}
+
+
+function sphereVertex(u, v) {
+  let theta = 2 * Math.PI * u;
+  let phi   = Math.PI * (v - .5);
+  let x = Math.cos(phi) * Math.cos(theta);
+  let y = Math.cos(phi) * Math.sin(theta);
+  let z = Math.sin(phi);
+  return [x, y, z,  x, y, z,  u, v];
+}
+
+function cylinder_vertex(u, v) {
+  let theta = 2 * Math.PI * u;
+  let x = Math.cos(theta);
+  let y = Math.sin(theta)
+  let z = v;
+  return [x, y, z, x, y, z, u, v];
+}
+
+function torus_vertex(u, v) {
+  let theta = 2 * Math.PI * u;
+  let phi = 2 * Math.PI * v;
+  let x = (1.5 + Math.cos(theta)) * Math.cos(phi);
+  let y = (1.5 + Math.cos(theta)) * Math.sin(phi);
+  let z = v;
+  return [x, y, z, x, y, z, u, v];
+}
+
+
+// CREATE A PARAMETRIC SHAPE AS A SINGLE TRIANGLE STRIP
+
+function createParametricShape(func, nu, nv) {
+  let vertices = [];
+  for (let j = 0 ; j < nv ; j++) {
+     let v0 =  j    / nv;
+     let v1 = (j+1) / nv;
+     for (let i = 0 ; i <= nu ; i++) {
+        let u = i / nu;
+	if (j % 2)
+	   u = 1 - u;
+	vertices = vertices.concat(func(u, v0));
+	vertices = vertices.concat(func(u, v1));
+     }
+  }
+  return vertices;
+}
+
+
+// GENERATE THE TRIANGLE STRIP FOR A SPHERE
+
+var sphereTriangleStrip = createParametricShape(sphereVertex, 20, 10);
+var badsphereTriangleStrip = createParametricShape(sphereVertex, 4, 2);
+
+
+var flake_count = 500;
+var flake_sizes = new Array(flake_count);
+var flake_locations = new Array(flake_count);
+var flakes_created = false;
+
+
+function reset_flake(i) {
+    flake_sizes[i] = 
+    [0.02 + Math.random() * 0.02, 
+    0.02 + Math.random() * 0.02, 
+    0.02 + Math.random() * 0.02];
+    flake_locations[i] = [
+        -1.0 + Math.random() * 2.0,
+         1.0 + Math.random() * 5.0,
+        -1.0 + Math.random() * 2.0,
+    ]
+}
+
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+
+   setUniform('1f', 'uTime', time);
+   setUniform('3fv', 'uCursor', cursor);
+
+   var zRange = 10; // DEFINE A RANGE FOR Z VALUES
+   var fl = 2;      // FOCAL LENGTH OF VIRTUAL CAMERA
+
+   // DEFINE THE PERSPECTIVE PROJECTION MATRIX
+
+   setUniform('Matrix4fv', 'uPPMat', false, [
+          1,  0,         0,     0,
+          0,  1,         0,     0,
+          0,  0, -1/zRange, -1/fl,
+          0,  0,         0,     1,
+   ]);
+
+
+   // SEND SPHERE GEOMETRY DOWN TO GPU AS A TRIANGLE STRIP
+
+   setBuffer(gl, sphereTriangleStrip);
+
+
+
+
+   var size = 0.5;
+   var nose_size = 0.04;
+
+   s = 1.0*Math.sin(time/2);
+   c = 1.0*Math.cos(time/2);
+
+    var m_rot = [
+    c, 0., -s, 0., 
+    0., 1., 0., 0., 
+    s, 0., c, 0., 
+    0., 0., 0., 1.
+   ]
+
+   let objMat = [
+    100, 0., 0., 0., 
+    0., 100, 0, 0., 
+    0., 0, 0.01, 0., 
+    0., 0, -10, 1
+   ];
+
+   // background sphere
+
+   let objRotMat = matrix_mult(objMat,m_rot);
+   let norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [0.3, 0.3, 0.3]);
+   drawBuffer(gl);    
+
+   //first ball
+    objMat[0] = size;     
+   objMat[5] = size;
+   objMat[10] = size;
+   objMat[14] = 0
+   objMat[13] = -0.5;  
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl);    
+              
+
+   // second ball
+   objMat[0] = size-0.1;     
+   objMat[5] = size-0.1;
+   objMat[10] = size-0.1;
+   objMat[13] = 0.0;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl); 
+
+   // third ball
+   objMat[0] = size-0.2;     
+   objMat[5] = size-0.2;
+   objMat[10] = size-0.2;
+   objMat[13] = 0.5;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,1,1]);
+   drawBuffer(gl);   
+
+   // nose
+   objMat[0] = nose_size;     
+   objMat[5] = nose_size;
+   objMat[10] = nose_size * 3;
+   objMat[13] = 0.5;
+   objMat[14] = 0.3;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,0.2,0]);
+   drawBuffer(gl);            
+
+   // eye left
+   var eye_size = 0.02;
+   objMat[0] = eye_size;
+   objMat[5] = eye_size;
+   objMat[10] = eye_size;
+   objMat[13] = 0.6;
+   objMat[14] = 0.25;
+   objMat[12] = 0.1;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('3fv', 'uRGB', [.1,0.1,0.1]);
+   drawBuffer(gl);         
+
+   // eye right
+   objMat[12] = -0.1;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('3fv', 'uRGB', [.1,0.1,0.1]);
+   drawBuffer(gl);   
+
+   // mouth 
+
+   objMat[0] = 0.08;
+   objMat[5] = 0.02;
+   objMat[10] = 0.05;
+   objMat[12] = 0.0;
+   objMat[13] = 0.4;
+   objMat[14] = 0.25;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1,0.0,0.0]);
+   drawBuffer(gl);   
+
+
+   // hat tall part;
+
+   objMat[0] = 0.2;
+   objMat[5] = 0.5;
+   objMat[10] = 0.2;
+   objMat[13] = 0.6;
+   objMat[14] = 0;
+   objMat[12] = 0.0;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1.,1.0,0.1]);
+   drawBuffer(gl);   
+
+   // hat short part;
+
+   objMat[0] = 0.4;
+   objMat[5] = 0.01;
+   objMat[10] = 0.4;
+   objMat[13] = 0.7;
+   objMat[14] = 0;
+   objMat[12] = 0.0;
+   objRotMat = matrix_mult(objMat,m_rot);
+   norMat1 = matrixInvert(objMat);
+
+
+   setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+   setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+   setUniform('3fv', 'uRGB', [1.,1.,0.01]);
+   drawBuffer(gl);   
+
+   setBuffer(gl, badsphereTriangleStrip);
+
+   if (!flakes_created) {
+       console.log("resetting flakes");
+        for (i = 0; i < flake_count; i++) {
+            reset_flake(i);
+        }
+        flakes_created = true;
+   }
+
+   function fall(i) {
+        flake_locations[i][1] -= 0.01;
+        if (flake_locations[i][1] < -1) {
+            reset_flake(i);
+        }
+   }
+
+
+   function flake(i) {
+        objMat[0] = flake_sizes[i][0];
+        objMat[5] = flake_sizes[i][1];
+        objMat[10] = flake_sizes[i][2];
+        fall(i);
+        objMat[12] = flake_locations[i][0];
+        objMat[13] = flake_locations[i][1];
+        objMat[14] = flake_locations[i][2];
+
+        objRotMat = matrix_mult(objMat,m_rot);
+        norMat1 = matrixInvert(objMat);
+        setUniform('Matrix4fv', 'uObjectMat', false, objRotMat);
+        setUniform('Matrix4fv', 'uNormalMat', false, norMat1);
+        setUniform('3fv', 'uRGB', [1.,1.,1.]);
+        drawBuffer(gl);   
+   }
+
+   for (var j = 0; j < flake_count; j++) {
+       flake(j);
+   }
+
+
+
+}
+
+canvas1.style.width = '800px';
+canvas1.style.height = '800px';
+
+var big = true;
+var txtwidth  = textArea.style.width;
+textArea.style.display = "none";
+
+
+document.getElementById("description").innerHTML = 
+    "Description (right click on canvas to open text editor)" 
+
+function resz(evt) {
+   if (big) {
+       document.getElementById("description").innerHTML = "Description"
+       //canvas1.style.width = '400px';
+       //canvas1.style.height = '400px';
+       textArea.style.display = "block";
+       //document.getElementById("description_entry").style.display = "none";
+
+       big = false;
+   } else {
+       big = true;
+       //canvas1.style.width = '800px';
+       //canvas1.style.height = '800px';
+
+       //document.getElementById("description_entry").style.display = "block";
+       textArea.style.display = "none";
+   }
+   evt.preventDefault();
+   return false;
+}
+
+
+
+canvas1.addEventListener('contextmenu', resz);
+canvas1.addEventListener('mousedown', function(evt){
+    evt.preventDefault();
+    if (evt.button == 0) {
+    } 
+    return false;})
+
+gl_start(canvas1, vs, fs);
+
+
+
+
+</script>
+

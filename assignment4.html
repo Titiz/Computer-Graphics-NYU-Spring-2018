@@ -1,0 +1,282 @@
+
+<link rel="stylesheet" href="styleGeneral.css"> </link>
+<style>
+canvas {background-color: black;}
+a {text-decoration: none;
+    color: black;}
+h1{background-color:#d6d2d1;}
+
+</style>
+<script src=lib2.js></script>
+
+
+<body >
+<center>
+<canvas id='canvas1' width=800 height=800 background-color=black></canvas>
+<h1 id = 'statename' color=white></h1>
+</center>
+</body>
+
+
+<!!-------- VERTEX SHADER: YOU PROBABLY DON'T WANT TO CHANGE THIS RIGHT NOW -------->
+
+<script id='my_vertex_shader' type='x-shader/x-vertex'>
+   attribute vec3 aPos;
+   varying   vec3 vPos;
+   void main() {
+      gl_Position = vec4(aPos, 1.0);
+      vPos = aPos;
+   }
+</script>
+
+
+<!!-------- FRAGMENT SHADER: THIS IS WHERE YOU WILL DO YOUR WORK -------->
+
+<script id='my_fragment_shader' type='x-shader/x-fragment'>
+
+ uniform float uTime;   // TIME, IN SECONDS
+
+ uniform mat4 uMatrix;  // Imported matrix from the javascript context
+
+ uniform vec4 uSpheres[100]; // Imported spheres from the javascript context
+
+
+ varying vec3 vPos;     // -1 < vPos.x < +1
+                        // -1 < vPos.y < +1
+                        //      vPos.z == 0
+
+
+vec4 raySph(vec3 V,vec3 W,vec4 S) {// TRACE RAY
+   vec3  P = S.xyz - V;            // TO SPHERE
+   float b = dot(W, P);
+   float d = b * b - dot(P, P) + S.w * S.w;
+   float t = b - sqrt(d);
+   return vec4(V + t*W, step(0.,d)*step(0.,t));
+}
+
+ void main() {    
+    // Redefine variables for easier function calls
+    float x = vPos.x;
+    float y = vPos.y;
+    float z = vPos.z;
+    float u = uTime;
+    const int sphere_count = 2;
+    const float pi = 3.1415;
+
+     float f = 5.;                // FOCAL LENGTH
+
+    vec3 V = vec3(0., 0., f);    // CREATE RAY
+    vec3 W = normalize(vec3(vPos.xy, -f));
+
+    vec3 color = vec3(0., 0., 0.);
+
+    float smallest_t = -1.;
+    for (int i = 0; i < sphere_count; i++) {
+        vec4 cur_sphere = uSpheres[i];
+        float r = cur_sphere.w;
+        vec3 C = (uMatrix * vec4(cur_sphere.xyz, 1.)).xyz;
+        vec4 P = raySph(V,W,vec4(C,r));
+        if (P.w > 0. && (dot(P.xyz - V, P.xyz - V) < smallest_t || smallest_t < 0.)) {                
+            vec3 N = (P.xyz - C) / r;   
+            vec3 L = normalize(vec3(1.,1.,1.));
+            float c = .1 + .9 * max(0., dot(N, L));
+            color = vec3(c, c*c, c*x*c);
+            smallest_t = dot(P.xyz - V, P.xyz - V);
+        }
+    }
+    
+
+    gl_FragColor = vec4(color, 1.0);
+ }</script>
+
+
+<!!-------- CREATE A PROPERLY DESCRIPTIVE TITLE BELOW -------->
+
+<script id='my_title' type='text/html'>
+Assignment 4 : Basic Matrix Transforms
+</script>
+
+
+<!!-------- HERE IS WHERE YOU CAN PROVIDE A LONGER TEXT DESCRIPTION -------->
+
+<script id='my_instructions' type='text/html'><font color=black>
+    <b id="description" style="font-size:30px;"> DESCRIPTION </b>
+    <p>
+        <b>Left click on the canvas to go to the next transformation </b>
+    </p>
+    <p>
+        For this homework I made two spheres using ray-tracing. These two spheres are multiplied by a matrix during each time-step.
+        To start with, both spheres are stagnant, as they are multiplied by the identity matrix.
+        When the visitor of the website left-mouse-clicks on the canvas,
+        the next matrix in a predefined array is picked to multiply both spheres. The name of this matrix is displayed
+        under the canvas and its effect is seen on both spheres. 
+    </p>
+
+
+    
+
+</script
+
+
+<!!-------- YOU PROBABLY DON'T WANT TO CHANGE ANYTHING BELOW FOR NOW -------->
+   
+<script>
+var vs = my_vertex_shader.innerHTML,
+    fs = my_fragment_shader.innerHTML;
+    fs = fs.substring(1, fs.length);
+
+document.body.innerHTML = [''
+   ,'<a href="list-view.html"><h1> <font size=40em><center padding-bottom=10px>' + my_title.innerHTML + '</center></font></h1></a>'
+   ,'<TABLE cellspacing=10 cellpadding=10 padding top=50 background-color=black><TR>'
+   ,'<td width=50></td><td><font color=red size=5><div id=errorMessage>&nbsp;</div></font></td>'
+   ,'</TR><TR>'
+   ,'<table cellspacing=10>'
+   ,'<tr>'
+   ,'<td valign=top><font size=2 color=red><div id=errorMarker>&nbsp;</div></font></td>'
+   ,'<td valign=top>'
+   ,'<textArea id=textArea spellcheck=false '
+   ,'style="font:12px courier;outline-width:0;border-style:none;resize:none;overflow:scroll;"'
+   ,'></textArea>'
+   ,'</td><td valign=top>' + document.body.innerHTML + '</td>'
+   ,'<td valign=top id="description_entry"><font size=5>' + my_instructions.innerHTML + '</td>'
+   ,'</tr></table>'
+   ,'</TR></TABLE>'
+   ].join('');
+
+var i, text = fs.split('\n'), cols = 0;
+for (i = 0 ; i < text.length ; i++)
+   cols = Math.max(cols, text[i].length);
+
+textArea.rows = text.length;
+textArea.cols = cols;
+textArea.value = fs;
+textArea.style.backgroundColor = '#202020';
+textArea.style.color = 'white';
+textArea.onkeyup = function() { canvas1.setShaders(vs, this.value); }
+
+var startTime = Date.now();
+// Here I define variables that I will be using 
+// These are the states the user gets to switch between with the left - mouse - click
+var cur_state = 0;
+var state_names = ["Identity", "Translation", "Rotation X", "Rotation Y", "Rotation Z", "Scaling"];
+var state_count = 6;
+
+// Keeping track of the number of spheres
+var sphere_count = 2;
+
+function animate(gl) {
+   let time = (Date.now() - startTime) / 1000;
+   setUniform('1f', 'uTime', time);
+   setUniform('1f',  'sphere_count', sphere_count);
+
+   // Define  two spheres
+   var s1 = [0.5, 0.5, -1, 0.4];
+   var s2 = [-0.5, -0.5, -1, 0.8];
+
+   // Here we bring all of the spheres into the webgl context
+
+   setUniform('4fv', 'uSpheres', s1.concat(s2));
+
+   // We now define all of the transfomrmations
+
+   s = 0.5*Math.sin(time);
+   c = 0.5*Math.cos(time);
+
+   var m_Id = [
+   1., 0., 0., 0., 
+   0., 1., 0., 0., 
+   0., 0., 1., 0., 
+   0., 0., 0., 1.];
+
+    var m_Trans = [
+    1., 0., 0., 0., 
+    0., 1., 0., 0., 
+    0., 0., 1., 0., 
+    s, 0., 0., 1.
+   ]
+
+    var m_Rotz = [
+    c, s, 0., 0., 
+    -s, c, 0., 0., 
+    0., 0., 1., 0., 
+    0., 0, 0, 1.
+   ]
+
+    var m_Rotx = [
+    1., 0., 0., 0., 
+    0., c, s, 0., 
+    0., -s, c, 0., 
+    0., 0., 0., 1.
+   ]
+
+    var m_Roty = [
+    c, 0., -s, 0., 
+    0., 1., 0., 0., 
+    s, 0., c, 0., 
+    0., 0., 0., 1.
+   ]
+
+    var m_Scale = [
+    1.+s, 0., 0., 0., 
+    0., 1.+s, 0., 0., 
+    0., 0., 1.+s, 0., 
+    0., 0., 0.,  1.
+   ]
+
+   // Finally, we store them all in an array
+
+   var matrices = [m_Id, m_Trans, m_Rotx, m_Roty, m_Rotz, m_Scale];
+
+   // And pass the matrix at the cur_state index to the webgl context
+
+   setUniform('Matrix4fv', 'uMatrix', false, matrices[cur_state]);
+}
+
+
+gl_start(canvas1, vs, fs);
+
+canvas1.style.width = '750px';
+canvas1.style.height = '750px';
+
+var big = true;
+var txtwidth  = textArea.style.width;
+textArea.style.display = "none";
+
+
+document.getElementById("description").innerHTML = 
+    "Description (right click on canvas to open text editor)" 
+document.getElementById("statename").innerHTML = state_names[cur_state];
+
+function resz(evt) {
+   if (big) {
+       document.getElementById("description").innerHTML = "Description"
+       //canvas1.style.width = '400px';
+       //canvas1.style.height = '400px';
+       textArea.style.display = "block";
+       //document.getElementById("description_entry").style.display = "none";
+
+       big = false;
+   } else {
+       big = true;
+       //canvas1.style.width = '800px';
+       //canvas1.style.height = '800px';
+
+       //document.getElementById("description_entry").style.display = "block";
+       textArea.style.display = "none";
+   }
+   evt.preventDefault();
+   return false;
+}
+
+canvas1.addEventListener('contextmenu', resz);
+canvas1.addEventListener('mousedown', function(evt){
+    evt.preventDefault();
+    if (evt.button == 0) {
+        cur_state = (cur_state+1) % state_count; 
+        document.getElementById("statename").innerHTML = state_names[cur_state];
+    } 
+    return false;})
+
+
+</script>
+
